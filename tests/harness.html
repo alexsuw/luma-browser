@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><title>Browser API validation</title><h1>Browser API validation</h1><pre id="results">Running…</pre><script type="module">
+import {ImageEnhancer} from '../src/api.js';
+const out=document.querySelector('#results'),a=new ImageEnhancer(),results=[];
+const check=(x,m)=>{if(!x)throw Error(m)};
+async function run(input,options={}){const id=a.submit(input,options);let ticks=0;const timer=setInterval(()=>ticks++,10);while(!['completed','failed','cancelled'].includes(a.getStatus(id).status))await new Promise(r=>setTimeout(r,10));clearInterval(timer);const s=a.getStatus(id);if(s.status==='completed'){s.bytes=a.getResult(id).size;s.mime=a.getResult(id).type;}a.release(id);return {...s,ticks};}
+async function test(name,fn){try{results.push({name,passed:true,...await fn()});}catch(e){results.push({name,passed:false,error:e.message});}out.textContent=JSON.stringify(results,null,2);}
+for(const type of ['image/png','image/jpeg'])await test(`15MP ${type}`,async()=>{const c=new OffscreenCanvas(5000,3000),ctx=c.getContext('2d');ctx.fillStyle='#304352';ctx.fillRect(0,0,5000,3000);ctx.fillStyle='#849562';ctx.fillRect(1500,0,1800,3000);const s=await run(await c.convertToBlob({type}),{type});check(s.status==='completed',JSON.stringify(s));check(s.elapsedMs<30000&&s.ticks>2,'Time/async constraint');return s;});
+for(const file of ['example.heic','reference/dark.bmp'])await test(file,async()=>{const s=await run(await (await fetch(`./fixtures/${file}`)).blob());check(s.status==='completed',JSON.stringify(s));return s;});
+await test('Invalid input',async()=>{const s=await run(new Blob(['bad']));check(s.status==='failed','Accepted bad input');});
+await test('Cancellation',async()=>{const id=a.submit(new Blob(['bad']));check(a.cancel(id),'Cancel failed');check(a.getStatus(id).status==='cancelled','Wrong state');a.release(id);});
+await test('Queue and URL',async()=>{const ids=[a.submit(new URL('./fixtures/reference/dark.bmp',location.href).href),a.submit(new URL('./fixtures/reference/bright.bmp',location.href).href)];while(ids.some(id=>!['completed','failed'].includes(a.getStatus(id).status)))await new Promise(r=>setTimeout(r,10));for(const id of ids){check(a.getStatus(id).status==='completed',JSON.stringify(a.getStatus(id)));a.release(id);}});
+out.textContent=JSON.stringify({completed:true,userAgent:navigator.userAgent,results},null,2);
+</script>

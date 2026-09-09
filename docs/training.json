@@ -1,0 +1,7 @@
+{
+  "seed": 20260909,
+  "trainingSamples": 240000,
+  "validationSamples": 5000,
+  "rmse": 0.01778292774177651,
+  "note": "Synthetic feature supervision; not a perceptual quality score."
+}

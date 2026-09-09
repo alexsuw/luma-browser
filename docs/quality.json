@@ -1,0 +1,65 @@
+{
+  "note": "Procedural technical reference, not a photographic or perceptual benchmark. Null PSNR means exact match.",
+  "cases": [
+    {
+      "name": "dark",
+      "psnrBefore": 15.075800457408269,
+      "psnrAfter": 21.997096184306457,
+      "parameters": {
+        "brightness": 0.09857474427419535,
+        "contrast": 1.001523398880741,
+        "saturation": 1.1123625287669245
+      }
+    },
+    {
+      "name": "bright",
+      "psnrBefore": 14.908688192178023,
+      "psnrAfter": 21.91416850551983,
+      "parameters": {
+        "brightness": -0.09831968526647625,
+        "contrast": 0.9894600806844263,
+        "saturation": 1.1057268898901018
+      }
+    },
+    {
+      "name": "flat",
+      "psnrBefore": 22.642824161738172,
+      "psnrAfter": 25.327987592279662,
+      "parameters": {
+        "brightness": -0.00811218688394786,
+        "contrast": 1.1278409466092898,
+        "saturation": 1.126584339014641
+      }
+    },
+    {
+      "name": "muted",
+      "psnrBefore": 29.26249497164796,
+      "psnrAfter": 29.992272641711807,
+      "parameters": {
+        "brightness": 0.001298795329136529,
+        "contrast": 0.990045348137558,
+        "saturation": 1.1370090636810486
+      }
+    },
+    {
+      "name": "oversaturated",
+      "psnrBefore": 24.910884426874187,
+      "psnrAfter": 25.121279499646377,
+      "parameters": {
+        "brightness": 0.0004816751580257045,
+        "contrast": 0.9884657030767092,
+        "saturation": 0.9984090130153096
+      }
+    },
+    {
+      "name": "balanced",
+      "psnrBefore": null,
+      "psnrAfter": 44.49184607903735,
+      "parameters": {
+        "brightness": 0.0006502375814003078,
+        "contrast": 0.9893240912450803,
+        "saturation": 1.1045497428807345
+      }
+    }
+  ]
+}
