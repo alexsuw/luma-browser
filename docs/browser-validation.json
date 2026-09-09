@@ -1,0 +1,42 @@
+{
+  "date": "2026-09-09",
+  "platform": "macOS ARM",
+  "harness": "tests/harness.html",
+  "unitTests": {
+    "passed": 5,
+    "total": 5
+  },
+  "browsers": [
+    {
+      "engine": "Chromium",
+      "version": "152",
+      "passed": 10,
+      "total": 10,
+      "png15MpMs": 246,
+      "jpeg15MpMs": 244,
+      "heicMs": 242,
+      "bmpMs": 15
+    },
+    {
+      "engine": "Firefox",
+      "version": "155",
+      "passed": 10,
+      "total": 10,
+      "png15MpMs": 411,
+      "jpeg15MpMs": 469,
+      "heicMs": 317,
+      "bmpMs": 16
+    },
+    {
+      "engine": "Safari",
+      "version": "26.6.2",
+      "passed": 10,
+      "total": 10,
+      "png15MpMs": 798,
+      "jpeg15MpMs": 2360,
+      "heicMs": 981,
+      "bmpMs": 111
+    }
+  ],
+  "limitations": "Simple generated 15 MP inputs; HEIC fixture is 1280x854. Not a universal latency or photographic quality guarantee."
+}

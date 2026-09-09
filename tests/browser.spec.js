@@ -1,12 +1,178 @@
-import {test,expect} from '@playwright/test';
-import {readFileSync} from 'node:fs';
-async function run(page,{type='image/png',width=640,height=480,bytes=null,strength=1}={}){return page.evaluate(async({type,width,height,bytes,strength})=>{const api=window.enhancer,c=document.createElement('canvas');c.width=width;c.height=height;const ctx=c.getContext('2d');ctx.fillStyle='#243b50';ctx.fillRect(0,0,width,height);ctx.fillStyle='#72906b';ctx.fillRect(width/3,0,width/3,height);let blob;if(bytes)blob=new Blob([new Uint8Array(bytes)]);else blob=await new Promise(r=>c.toBlob(r,type));let ticks=0;const t=setInterval(()=>ticks++,10);const events=[];const id=api.submit(blob,{type,strength});api.addEventListener('statuschange',e=>{if(e.detail.id===id)events.push(e.detail.progress);});while(!['failed','completed','cancelled'].includes(api.getStatus(id).status))await new Promise(r=>setTimeout(r,10));clearInterval(t);const status=api.getStatus(id);let size=0,mime='';if(status.status==='completed'){const result=api.getResult(id);size=result.size;mime=result.type;}api.release(id);return {...status,size,mime,ticks,events};},{type,width,height,bytes,strength});}
-test.beforeEach(async({page})=>{await page.goto('/');});
-for(const type of ['image/png','image/jpeg'])test(`15 MP ${type} completes under 30s without blocking`,async({page})=>{const r=await run(page,{type,width:5000,height:3000});expect(r.status,JSON.stringify(r)).toBe('completed');expect(r.width*r.height).toBe(15000000);expect(r.elapsedMs).toBeLessThan(30000);expect(r.ticks).toBeGreaterThan(2);expect(r.size).toBeGreaterThan(0);expect(r.mime).toBe(type);expect(r.events.at(-1)).toBe(100);console.log(JSON.stringify({benchmark:type,ms:r.elapsedMs,ticks:r.ticks}));});
-test('HEIC decodes through bundled WASM',async({page})=>{const r=await run(page,{bytes:[...readFileSync('tests/fixtures/example.heic')]});expect(r.status,JSON.stringify(r)).toBe('completed');expect(r.width).toBeGreaterThan(0);});
-test('BMP signature and native decode',async({page})=>{const b=Buffer.alloc(70);b.write('BM');b.writeUInt32LE(70,2);b.writeUInt32LE(54,10);b.writeUInt32LE(40,14);b.writeInt32LE(2,18);b.writeInt32LE(2,22);b.writeUInt16LE(1,26);b.writeUInt16LE(24,28);b.fill(120,54);const r=await run(page,{bytes:[...b]});expect(r.status,JSON.stringify(r)).toBe('completed');expect(r.width).toBe(2);});
-test('Invalid data and oversize image fail',async({page})=>{expect((await run(page,{bytes:[1,2,3,4]})).status).toBe('failed');expect((await run(page,{width:5001,height:3000})).status).toBe('failed');});
-test('Cancellation, queue, result guards and release',async({page})=>{const r=await page.evaluate(async()=>{const a=window.enhancer;const id=a.submit(new Blob([1]));const cancelled=a.cancel(id);let guarded=false;try{a.getResult(id);}catch{guarded=true;}const status=a.getStatus(id).status;a.release(id);return {cancelled,guarded,status,size:a.jobs.size};});expect(r).toEqual({cancelled:true,guarded:true,status:'cancelled',size:0});});
-test('UI upload, processing, download and comparison',async({page})=>{await page.locator('#file').setInputFiles({name:'sample.bmp',mimeType:'image/bmp',buffer:(()=>{const b=Buffer.alloc(70);b.write('BM');b.writeUInt32LE(70,2);b.writeUInt32LE(54,10);b.writeUInt32LE(40,14);b.writeInt32LE(2,18);b.writeInt32LE(2,22);b.writeUInt16LE(1,26);b.writeUInt16LE(24,28);b.fill(120,54);return b;})()});await page.locator('#run').click();await expect(page.locator('#download')).toBeVisible();await page.locator('#toggle').click();await expect(page.locator('#image-label')).toHaveText('Оригинал');await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);});
+import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
+async function run(
+  page,
+  {
+    type = "image/png",
+    width = 640,
+    height = 480,
+    bytes = null,
+    strength = 1,
+  } = {},
+) {
+  return page.evaluate(
+    async ({ type, width, height, bytes, strength }) => {
+      const api = window.enhancer,
+        c = document.createElement("canvas");
+      c.width = width;
+      c.height = height;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#243b50";
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = "#72906b";
+      ctx.fillRect(width / 3, 0, width / 3, height);
+      let blob;
+      if (bytes) blob = new Blob([new Uint8Array(bytes)]);
+      else blob = await new Promise((r) => c.toBlob(r, type));
+      let ticks = 0;
+      const t = setInterval(() => ticks++, 10);
+      const events = [];
+      const id = api.submit(blob, { type, strength });
+      api.addEventListener("statuschange", (e) => {
+        if (e.detail.id === id) events.push(e.detail.progress);
+      });
+      while (
+        !["failed", "completed", "cancelled"].includes(api.getStatus(id).status)
+      )
+        await new Promise((r) => setTimeout(r, 10));
+      clearInterval(t);
+      const status = api.getStatus(id);
+      let size = 0,
+        mime = "";
+      if (status.status === "completed") {
+        const result = api.getResult(id);
+        size = result.size;
+        mime = result.type;
+      }
+      api.release(id);
+      return { ...status, size, mime, ticks, events };
+    },
+    { type, width, height, bytes, strength },
+  );
+}
+test.beforeEach(async ({ page }) => {
+  await page.goto("/");
+});
+for (const type of ["image/png", "image/jpeg"])
+  test(`15 MP ${type} completes under 30s without blocking`, async ({
+    page,
+  }) => {
+    const r = await run(page, { type, width: 5000, height: 3000 });
+    expect(r.status, JSON.stringify(r)).toBe("completed");
+    expect(r.width * r.height).toBe(15000000);
+    expect(r.elapsedMs).toBeLessThan(30000);
+    expect(r.ticks).toBeGreaterThan(2);
+    expect(r.size).toBeGreaterThan(0);
+    expect(r.mime).toBe(type);
+    expect(r.events.at(-1)).toBe(100);
+    console.log(
+      JSON.stringify({ benchmark: type, ms: r.elapsedMs, ticks: r.ticks }),
+    );
+  });
+test("HEIC decodes through bundled WASM", async ({ page }) => {
+  const r = await run(page, {
+    bytes: [...readFileSync("tests/fixtures/example.heic")],
+  });
+  expect(r.status, JSON.stringify(r)).toBe("completed");
+  expect(r.width).toBeGreaterThan(0);
+});
+test("BMP signature and native decode", async ({ page }) => {
+  const b = Buffer.alloc(70);
+  b.write("BM");
+  b.writeUInt32LE(70, 2);
+  b.writeUInt32LE(54, 10);
+  b.writeUInt32LE(40, 14);
+  b.writeInt32LE(2, 18);
+  b.writeInt32LE(2, 22);
+  b.writeUInt16LE(1, 26);
+  b.writeUInt16LE(24, 28);
+  b.fill(120, 54);
+  const r = await run(page, { bytes: [...b] });
+  expect(r.status, JSON.stringify(r)).toBe("completed");
+  expect(r.width).toBe(2);
+});
+test("Invalid data and oversize image fail", async ({ page }) => {
+  expect((await run(page, { bytes: [1, 2, 3, 4] })).status).toBe("failed");
+  expect((await run(page, { width: 5001, height: 3000 })).status).toBe(
+    "failed",
+  );
+});
+test("Cancellation, queue, result guards and release", async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const a = window.enhancer;
+    const id = a.submit(new Blob([1]));
+    const cancelled = a.cancel(id);
+    let guarded = false;
+    try {
+      a.getResult(id);
+    } catch {
+      guarded = true;
+    }
+    const status = a.getStatus(id).status;
+    a.release(id);
+    return { cancelled, guarded, status, size: a.jobs.size };
+  });
+  expect(r).toEqual({
+    cancelled: true,
+    guarded: true,
+    status: "cancelled",
+    size: 0,
+  });
+});
+test("UI upload, processing, download and comparison", async ({ page }) => {
+  await page.locator("#file").setInputFiles({
+    name: "sample.bmp",
+    mimeType: "image/bmp",
+    buffer: (() => {
+      const b = Buffer.alloc(70);
+      b.write("BM");
+      b.writeUInt32LE(70, 2);
+      b.writeUInt32LE(54, 10);
+      b.writeUInt32LE(40, 14);
+      b.writeInt32LE(2, 18);
+      b.writeInt32LE(2, 22);
+      b.writeUInt16LE(1, 26);
+      b.writeUInt16LE(24, 28);
+      b.fill(120, 54);
+      return b;
+    })(),
+  });
+  await page.locator("#run").click();
+  await expect(page.locator("#download")).toBeVisible();
+  await page.locator("#toggle").click();
+  await expect(page.locator("#image-label")).toHaveText("Оригинал");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
 
-test('Active worker cancellation and deadline',async({page})=>{const r=await page.evaluate(async()=>{const {ImageEnhancer}=await import('/src/api.js');const a=new ImageEnhancer({timeout:1});const id=a.submit(new Blob(['invalid']));while(!['failed','completed'].includes(a.getStatus(id).status))await new Promise(r=>setTimeout(r,5));const error=a.getStatus(id).error;a.dispose();const b=new ImageEnhancer();const second=b.submit(new Blob(['invalid']));await new Promise(r=>queueMicrotask(r));const active=b.active===second;const cancelled=b.cancel(second);b.dispose();return {error,active,cancelled};});expect(r.error).toContain('время');expect(r.active).toBe(true);expect(r.cancelled).toBe(true);});
+test("Active worker cancellation and deadline", async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const { ImageEnhancer } = await import("/src/api.js");
+    const NativeWorker = window.Worker;
+    let stopped = false;
+    window.Worker = class { postMessage() {} terminate() { stopped = true; } };
+    const a = new ImageEnhancer({ timeout: 5 });
+    const id = a.submit(new Blob(["invalid"]));
+    await new Promise(r=>queueMicrotask(r));
+    window.Worker = NativeWorker;
+    while (!["failed", "completed"].includes(a.getStatus(id).status))
+      await new Promise((r) => setTimeout(r, 5));
+    const error = a.getStatus(id).error;
+    a.dispose();
+    const b = new ImageEnhancer();
+    const second = b.submit(new Blob(["invalid"]));
+    await new Promise((r) => queueMicrotask(r));
+    const active = b.active === second;
+    const cancelled = b.cancel(second);
+    b.dispose();
+    return { error, active, cancelled, stopped };
+  });
+  expect(r.error).toContain("время");
+  expect(r.stopped).toBe(true);
+  expect(r.active).toBe(true);
+  expect(r.cancelled).toBe(true);
+});

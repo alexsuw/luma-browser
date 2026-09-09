@@ -1,5 +1,7 @@
 # Luma Browser
 
+[Открыть демо](https://alexsuw.github.io/luma-browser/) · [Результаты проверок](docs/VALIDATION.md)
+
 Локальная коррекция яркости, контрастности и цветности изображений. Компактная MLP-нейросеть подбирает параметры, а алгоритм обработки применяет их к полному разрешению в Web Worker. Фотографии не отправляются на сервер.
 
 ## Запуск
@@ -49,3 +51,7 @@ npm run train
 ```
 
 Техническое задание: [docs/SPEC.md](docs/SPEC.md). Методика обучения и ограничения: [docs/MODEL.md](docs/MODEL.md). Результаты проверок: [docs/VALIDATION.md](docs/VALIDATION.md). Лицензии: [THIRD_PARTY.md](THIRD_PARTY.md).
+
+## GitHub Actions
+
+Готовый workflow: `docs/ci.yml`. Для активации переместите его в `.github/workflows/ci.yml`; при публикации через OAuth нужен scope `workflow`. В текущей поставке тесты трёх движков выполнены локально через браузерный harness.

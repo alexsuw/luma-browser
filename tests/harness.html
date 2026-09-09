@@ -1,13 +1,132 @@
-<!doctype html><meta charset="utf-8"><title>Browser API validation</title><h1>Browser API validation</h1><pre id="results">Running…</pre><script type="module">
-import {ImageEnhancer} from '../src/api.js';
-const out=document.querySelector('#results'),a=new ImageEnhancer(),results=[];
-const check=(x,m)=>{if(!x)throw Error(m)};
-async function run(input,options={}){const id=a.submit(input,options);let ticks=0;const timer=setInterval(()=>ticks++,10);while(!['completed','failed','cancelled'].includes(a.getStatus(id).status))await new Promise(r=>setTimeout(r,10));clearInterval(timer);const s=a.getStatus(id);if(s.status==='completed'){s.bytes=a.getResult(id).size;s.mime=a.getResult(id).type;}a.release(id);return {...s,ticks};}
-async function test(name,fn){try{results.push({name,passed:true,...await fn()});}catch(e){results.push({name,passed:false,error:e.message});}out.textContent=JSON.stringify(results,null,2);}
-for(const type of ['image/png','image/jpeg'])await test(`15MP ${type}`,async()=>{const c=new OffscreenCanvas(5000,3000),ctx=c.getContext('2d');ctx.fillStyle='#304352';ctx.fillRect(0,0,5000,3000);ctx.fillStyle='#849562';ctx.fillRect(1500,0,1800,3000);const s=await run(await c.convertToBlob({type}),{type});check(s.status==='completed',JSON.stringify(s));check(s.elapsedMs<30000&&s.ticks>2,'Time/async constraint');return s;});
-for(const file of ['example.heic','reference/dark.bmp'])await test(file,async()=>{const s=await run(await (await fetch(`./fixtures/${file}`)).blob());check(s.status==='completed',JSON.stringify(s));return s;});
-await test('Invalid input',async()=>{const s=await run(new Blob(['bad']));check(s.status==='failed','Accepted bad input');});
-await test('Cancellation',async()=>{const id=a.submit(new Blob(['bad']));check(a.cancel(id),'Cancel failed');check(a.getStatus(id).status==='cancelled','Wrong state');a.release(id);});
-await test('Queue and URL',async()=>{const ids=[a.submit(new URL('./fixtures/reference/dark.bmp',location.href).href),a.submit(new URL('./fixtures/reference/bright.bmp',location.href).href)];while(ids.some(id=>!['completed','failed'].includes(a.getStatus(id).status)))await new Promise(r=>setTimeout(r,10));for(const id of ids){check(a.getStatus(id).status==='completed',JSON.stringify(a.getStatus(id)));a.release(id);}});
-out.textContent=JSON.stringify({completed:true,userAgent:navigator.userAgent,results},null,2);
+<!doctype html><meta charset="utf-8" /><title>Browser API validation</title>
+<h1>Browser API validation</h1>
+<pre id="results">Running…</pre>
+<script type="module">
+  import { ImageEnhancer } from "../src/api.js";
+  const out = document.querySelector("#results"),
+    a = new ImageEnhancer(),
+    results = [];
+  const check = (x, m) => {
+    if (!x) throw Error(m);
+  };
+  async function run(input, options = {}) {
+    const id = a.submit(input, options);
+    let ticks = 0;
+    const timer = setInterval(() => ticks++, 10);
+    while (
+      !["completed", "failed", "cancelled"].includes(a.getStatus(id).status)
+    )
+      await new Promise((r) => setTimeout(r, 10));
+    clearInterval(timer);
+    const s = a.getStatus(id);
+    if (s.status === "completed") {
+      s.bytes = a.getResult(id).size;
+      s.mime = a.getResult(id).type;
+    }
+    a.release(id);
+    return { ...s, ticks };
+  }
+  async function test(name, fn) {
+    try {
+      results.push({ name, passed: true, ...(await fn()) });
+    } catch (e) {
+      results.push({ name, passed: false, error: e.message });
+    }
+    out.textContent = JSON.stringify(results, null, 2);
+  }
+  for (const type of ["image/png", "image/jpeg"])
+    await test(`15MP ${type}`, async () => {
+      const c = new OffscreenCanvas(5000, 3000),
+        ctx = c.getContext("2d");
+      ctx.fillStyle = "#304352";
+      ctx.fillRect(0, 0, 5000, 3000);
+      ctx.fillStyle = "#849562";
+      ctx.fillRect(1500, 0, 1800, 3000);
+      const s = await run(await c.convertToBlob({ type }), { type });
+      check(s.status === "completed", JSON.stringify(s));
+      check(s.elapsedMs < 30000 && s.ticks > 2, "Time/async constraint");
+      return s;
+    });
+  for (const file of ["example.heic", "reference/dark.bmp"])
+    await test(file, async () => {
+      const s = await run(await (await fetch(`./fixtures/${file}`)).blob());
+      check(s.status === "completed", JSON.stringify(s));
+      return s;
+    });
+  await test("Invalid input", async () => {
+    const s = await run(new Blob(["bad"]));
+    check(s.status === "failed", "Accepted bad input");
+  });
+  await test("Cancellation", async () => {
+    const id = a.submit(new Blob(["bad"]));
+    check(a.cancel(id), "Cancel failed");
+    check(a.getStatus(id).status === "cancelled", "Wrong state");
+    a.release(id);
+  });
+  await test("Queue and URL", async () => {
+    const ids = [
+      a.submit(new URL("./fixtures/reference/dark.bmp", location.href).href),
+      a.submit(new URL("./fixtures/reference/bright.bmp", location.href).href),
+    ];
+    while (
+      ids.some(
+        (id) => !["completed", "failed"].includes(a.getStatus(id).status),
+      )
+    )
+      await new Promise((r) => setTimeout(r, 10));
+    for (const id of ids) {
+      check(
+        a.getStatus(id).status === "completed",
+        JSON.stringify(a.getStatus(id)),
+      );
+      a.release(id);
+    }
+  });
+  await test("Active cancellation ignores late messages", async () => {
+    const id = a.submit(new Blob(["invalid"]));
+    await new Promise(r => queueMicrotask(r));
+    const lateMessage = a.get(id).worker.onmessage;
+    check(a.cancel(id), "Active cancellation failed");
+    lateMessage({data:{status:"completed",progress:100}});
+    check(a.getStatus(id).status === "cancelled", "Late event changed terminal state");
+    a.release(id);
+    lateMessage({data:{status:"processing",progress:50}});
+  });
+  await test("Deadline terminates the worker", async () => {
+    const NativeWorker = window.Worker;
+    let stopped = false;
+    window.Worker = class { postMessage() {} terminate() { stopped = true; } };
+    const limited = new ImageEnhancer({timeout:5});
+    let id;
+    try { id = limited.submit(new Blob(["invalid"])); await new Promise(r=>queueMicrotask(r)); }
+    finally { window.Worker = NativeWorker; }
+    while (limited.getStatus(id).status !== "failed") await new Promise(r=>setTimeout(r,5));
+    check(limited.getStatus(id).error.includes("время") && stopped, "Deadline did not terminate worker");
+    limited.dispose();
+  });
+  await test("Oversize rejected before pixel decoding", async () => {
+    const bytes = new Uint8Array(24);
+    bytes.set([137,80,78,71,13,10,26,10]);
+    const view = new DataView(bytes.buffer);
+    view.setUint32(16,5001); view.setUint32(20,3000);
+    const status = await run(new Blob([bytes]));
+    check(status.status === "failed" && status.error.includes("15 Мп"), JSON.stringify(status));
+  });
+  out.textContent =
+    "COMPLETED " +
+    results.filter((r) => r.passed).length +
+    "/" +
+    results.length +
+    "\n" +
+    navigator.userAgent +
+    "\n" +
+    results
+      .map(
+        (r) =>
+          r.name +
+          ": " +
+          (r.passed ? "PASS" : "FAIL " + r.error) +
+          (r.elapsedMs ? " — " + r.elapsedMs + " ms; ticks " + r.ticks : ""),
+      )
+      .join("\n");
 </script>

@@ -1,2 +1,6 @@
-import { defineConfig } from 'vite';
-export default defineConfig({base:'./',build:{target:'es2022'},worker:{format:'es'}});
+import { defineConfig } from "vite";
+export default defineConfig({
+  base: "./",
+  build: { target: "es2022" },
+  worker: { format: "es" },
+});
